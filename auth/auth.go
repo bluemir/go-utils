@@ -49,4 +49,5 @@ type Manager interface {
 
 type IsClause interface {
 	Allow(action Action) bool
+	NotAllow(actio Action) bool
 }
