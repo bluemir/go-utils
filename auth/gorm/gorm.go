@@ -33,22 +33,24 @@ func tryGetDBFormOpt(opts map[string]interface{}) (*gorm.DB, bool) {
 	}
 	return db, true
 }
-func New(opts map[string]interface{}) (auth.StoreDriver, error) {
+func New(opts map[string]interface{}) (auth.StoreDriver, bool, error) {
 	db, ok := tryGetDBFormOpt(opts)
 	if !ok {
-		filename := getOpt(opts, "filename", "test.db").(string)
+		filename := getOpt(opts, "filename", ":memory:").(string)
 		var err error
 		db, err = gorm.Open("sqlite3", filename)
 		if err != nil {
-			return nil, errors.New("failed to connect database")
+			return nil, true, errors.New("failed to connect database")
 		}
 	}
+
+	first := !db.HasTable(&auth.User{}) && !db.HasTable(&auth.Token{}) && !db.HasTable(&auth.Rule{})
 
 	db.AutoMigrate(&auth.User{})
 	db.AutoMigrate(&auth.Token{})
 	db.AutoMigrate(&auth.Rule{})
 
-	return &store{db}, nil
+	return &store{db}, first, nil
 }
 func (s *store) Close() error {
 	return s.db.Close()

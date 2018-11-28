@@ -43,11 +43,12 @@ type Manager interface {
 	DeleteRule(role string, action ...string) error
 
 	Root(name string) (string, error) // generate-key
+	RootWithKey(name string, key string) error
 
 	Close() error
 }
 
 type IsClause interface {
 	Allow(action Action) bool
-	NotAllow(actio Action) bool
+	NotAllow(action Action) bool
 }

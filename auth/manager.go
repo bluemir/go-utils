@@ -15,7 +15,7 @@ import (
 	"github.com/bluemir/go-utils/auth/utils"
 )
 
-type DriverInit func(opt map[string]interface{}) (StoreDriver, error)
+type DriverInit func(opt map[string]interface{}) (StoreDriver, bool, error)
 
 var drivers = map[string]DriverInit{}
 
@@ -23,14 +23,14 @@ func RegisterStoreDrver(name string, i DriverInit) {
 	drivers[name] = i
 }
 
-func New(opt *Options) (Manager, error) {
+func New(opt *Options) (Manager, bool, error) {
 	driver, ok := drivers[opt.StoreDriver]
 	if !ok {
-		return nil, errors.Errorf("StoreDriver not found: '%s'", opt.StoreDriver)
+		return nil, true, errors.Errorf("StoreDriver not found: '%s'", opt.StoreDriver)
 	}
-	sd, err := driver(opt.DriverOpts)
+	sd, first, err := driver(opt.DriverOpts)
 	if err != nil {
-		return nil, err
+		return nil, first, err
 	}
 
 	if opt.RandomKeyLength == 0 {
@@ -41,7 +41,7 @@ func New(opt *Options) (Manager, error) {
 	return &manager{
 		store: sd,
 		opt:   opt,
-	}, nil
+	}, first, nil
 }
 
 type Options struct {
@@ -192,9 +192,17 @@ func (m *manager) DeleteRule(role string, actions ...string) error {
 func (m *manager) Root(name string) (string, error) {
 	unhashedKey := utils.RandomString(m.opt.RandomKeyLength)
 
+	err := m.RootWithKey(name, unhashedKey)
+	if err != nil {
+		return "", nil
+	}
+	str := fmt.Sprintf("%s:%s", name, unhashedKey)
+	return base64.StdEncoding.EncodeToString([]byte(str)), nil
+}
+func (m *manager) RootWithKey(name string, key string) error {
 	root, ok, err := m.store.GetUser(name)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if !ok {
 		root = &User{
@@ -203,10 +211,8 @@ func (m *manager) Root(name string) (string, error) {
 		}
 		err := m.store.CreateUser(root)
 		if err != nil {
-
-			return "", nil
+			return nil
 		}
-		// QUESTION: get user?
 	} else {
 		root.Role = Role(m.opt.RootRole)
 
@@ -216,23 +222,21 @@ func (m *manager) Root(name string) (string, error) {
 	tokens, err := m.store.ListToken(name)
 	for _, token := range tokens {
 		if err := m.store.DeleteToken(token.RevokeKey); err != nil {
-			return "", err
+			return err
 		}
 	}
 
 	token := &Token{
 		Username:  name,
-		HashedKey: hash(unhashedKey, salt(name)),
-		RevokeKey: hash(name+time.Now().String()+unhashedKey[:4], "__revoke__"),
+		HashedKey: hash(key, salt(name)),
+		RevokeKey: hash(name+time.Now().String()+key[:4], "__revoke__"),
 	}
 
 	err = m.store.CreateToken(token)
 	if err != nil {
-		return "", err
+		return err
 	}
-
-	str := fmt.Sprintf("%s:%s", name, unhashedKey)
-	return base64.StdEncoding.EncodeToString([]byte(str)), nil
+	return nil
 }
 
 func hashRawHex(str string) string {
