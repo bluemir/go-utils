@@ -42,128 +42,22 @@ func New(opts map[string]interface{}) (auth.StoreDriver, bool, error) {
 		if err != nil {
 			return nil, true, errors.New("failed to connect database")
 		}
+		db.DB().SetMaxOpenConns(1)
 	}
 
-	first := !db.HasTable(&auth.User{}) && !db.HasTable(&auth.Token{}) && !db.HasTable(&auth.Rule{})
+	first := true &&
+		!db.HasTable(&User{}) && !db.HasTable(&UserAttr{}) &&
+		!db.HasTable(&Token{}) && !db.HasTable(&TokenAttr{})
 
-	db.AutoMigrate(&auth.User{})
-	db.AutoMigrate(&auth.Token{})
-	db.AutoMigrate(&auth.Rule{})
+	db.AutoMigrate(
+		&User{},
+		&UserAttr{},
+		&Token{},
+		&TokenAttr{},
+	)
 
 	return &store{db}, first, nil
 }
 func (s *store) Close() error {
 	return s.db.Close()
-}
-
-func (s *store) CreateUser(u *auth.User) error {
-	// TODO vaildate
-	if s.db.NewRecord(u) {
-		err := s.db.Create(u).Error
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	return errors.New("User already exist")
-}
-func (s *store) GetUser(username string) (*auth.User, bool, error) {
-	user := &auth.User{}
-	if err := s.db.Where("name = ?", username).First(user).Error; err != nil {
-		if gorm.IsRecordNotFoundError(err) {
-			return nil, false, nil
-		}
-		return nil, false, err
-	}
-	return user, true, nil
-}
-func (s *store) ListUser() ([]auth.User, error) {
-	users := []auth.User{}
-	if err := s.db.Find(&users).Error; err != nil {
-		return nil, err
-	}
-	return users, nil
-}
-func (s *store) PutUser(u *auth.User) error {
-	if err := s.db.Table("users").Where("name = ?", u.Name).Update(u).Error; err != nil {
-		return err
-	}
-	return nil
-}
-func (s *store) DeleteUser(username string) error {
-	if err := s.db.Where("name = ?", username).Delete(&auth.User{}).Error; err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *store) CreateToken(t *auth.Token) error {
-	if s.db.NewRecord(t) {
-		err := s.db.Create(t).Error
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	return errors.New("Token already exist")
-}
-func (s *store) GetToken(username, hashedKey string) (*auth.Token, bool, error) {
-	token := &auth.Token{}
-	err := s.db.Where("username = ? AND hashed_key = ?", username, hashedKey).First(token).Error
-	if err != nil {
-		if gorm.IsRecordNotFoundError(err) {
-			return nil, false, nil
-		}
-		return nil, false, err
-	}
-	return token, true, nil
-}
-func (s *store) ListToken(username string) ([]auth.Token, error) {
-	result := []auth.Token{}
-	err := s.db.Where("username = ?", username).Find(&result).Error
-	if err != nil {
-		return nil, err
-	}
-	return result, err
-}
-func (s *store) PutToken(t *auth.Token) error {
-	return nil
-}
-func (s *store) DeleteToken(revokeKey string) error {
-	err := s.db.Where("revoke_key = ?", revokeKey).Delete(&auth.Token{}).Error
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// create mean just put
-func (s *store) HasRule(role auth.Role, action auth.Action) bool {
-	cnt := 0
-
-	err := s.db.Table("rules").Where("role = ? AND allow = ?", role, action).Count(&cnt).Error
-	if err != nil {
-		//TODO log
-		return false
-	}
-	if cnt > 0 {
-		return true
-	}
-	return false
-
-}
-func (s *store) PutRule(role auth.Role, action auth.Action) error {
-	rule := &auth.Rule{Role: role, Allow: action}
-	if err := s.db.Where(rule).Assign(rule).FirstOrCreate(rule).Error; err != nil {
-		return err
-	}
-	return nil
-}
-func (s *store) DeleteRule(role auth.Role, action auth.Action) error {
-	if err := s.db.Where("role = ? AND action = ?", role, action).Delete(&auth.Rule{}).Error; err != nil {
-		return err
-	}
-
-	return nil
 }

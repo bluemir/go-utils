@@ -1,11 +1,13 @@
 package auth
 
+import "net/http"
+
 type StoreDriver interface {
 	CreateUser(u *User) error
-	GetUser(username string) (*User, bool, error)
+	GetUser(name string) (*User, bool, error)
 	ListUser() ([]User, error)
 	PutUser(u *User) error
-	DeleteUser(username string) error
+	DeleteUser(name string) error
 
 	CreateToken(t *Token) error
 	GetToken(username, hashedKey string) (*Token, bool, error)
@@ -13,42 +15,91 @@ type StoreDriver interface {
 	PutToken(t *Token) error
 	DeleteToken(revokeKey string) error
 
-	// create mean just put
-	HasRule(role Role, action Action) bool // error?
-	PutRule(role Role, action Action) error
-	DeleteRule(role Role, action Action) error
+	//AddRule()
+	//DeleteRule()
+	//ListRule()
 
 	Close() error
 }
 
-// auth.Is(token).Allow("action")
 type Manager interface {
-	HttpAuth(header string) (*Token, error)
-	Default(name, key string) (*Token, error)
+	User() UserClause
+	Token() TokenClause
 
-	CreateUser(u *User) error
-	GetUser(name string) (*User, bool, error)
-	ListUser(filter ...string) ([]User, error)
-	UpdateUser(u *User) error
-	DeleteUser(u *User) error
+	Authn() AuthnClause
+	Authz(token *Token) AuthzClause
 
-	IssueToken(username, unhashedKey string) (*Token, error)
-	ListToken(username string) ([]Token, error)
-	UpdateToken(t *Token) error
-	RevokeToken(RevokeKey string) error
+	ABAC() ABACClause
+	RBAC() RBACClause
 
-	Is(interface{}) IsClause
-
-	PutRule(role string, action ...string) error
-	DeleteRule(role string, action ...string) error
+	Rules() RulesClause
 
 	Root(name string) (string, error) // generate-key
 	RootWithKey(name string, key string) error
 
 	Close() error
 }
+type UserClause interface {
+	Create(u *User) (*User, error)
+	Get(name string) (*User, bool, error)
+	List(filter ...string) ([]User, error)
+	Update(u *User) error
+	Delete(u *User) error
+}
+type TokenClause interface {
+	Issue(username, unhashedKey string) (*Token, error)
+	List(username string) ([]Token, error)
+	Revoke(revokeKey string) error
+}
+type AuthnClause interface {
+	Default(name, unhashedKey string) (*Token, error)
+	HTTPHeaderString(header string) (*Token, error)
+	HTTP(header http.Header) (*Token, error)
+}
+type AuthzClause interface {
+	Do(action Action, resource Resource) bool
+	Create(resource Resource) bool
+	Get(resource Resource) bool
+	List(resource Resource) bool
+	Update(resource Resource) bool
+	Patch(resource Resource) bool
+	Delete(resource Resource) bool
+}
 
-type IsClause interface {
-	Allow(action Action) bool
-	NotAllow(action Action) bool
+type ABACClause interface {
+	User(user *User) AttrHandler
+	Token(token *Token) AttrHandler
+}
+
+type RBACClause interface {
+	Rules() RBACRulesClause
+	User(user *User) RBACUserClause
+}
+type RBACRulesClause interface {
+	Role(role Role) RBACRulesRoleClause
+}
+type RBACRulesRoleClause interface {
+	//LoadYaml(buf []byte) error
+	//LoadJson(buf []byte) error
+	//DumpYaml() ([]byte, error)
+	//DumpJson() ([]byte, error)
+	AddPermission(action Action, resource Resource) error
+	DeletePermission(action Action, resource Resource) error
+}
+type RBACUserClause interface {
+	AddRole(role Role) error
+	RemoveRole(role Role) error
+	Roles() ([]Role, error)
+}
+
+type RulesClause interface {
+	Add(rule string) error
+	//AddCustom(id string, f func() bool) error
+	List() ([]Rule, error)
+	Delete(index int) error
+}
+
+type AttrHandler interface {
+	Set(key, value string) error
+	Get(key string) (string, error)
 }

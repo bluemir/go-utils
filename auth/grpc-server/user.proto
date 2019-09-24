@@ -1,0 +1,34 @@
+
+service UserService {
+	rpc HttpAuth(header string) (*Token, error);
+	rpc Default(name, key string) (*Token, error)
+
+	rpc CreateUser(u *User) error
+	rpc GetUser(name string) (*User, bool, error)
+	rpc	ListUser(filter ...string) ([]User, error)
+	rpc	UpdateUser(u *User) error
+	rpc	DeleteUser(u *User) error
+
+	rpc IssueToken(username, unhashedKey string) (*Token, error)
+	rpc	ListToken(username string) ([]Token, error)
+	rpc	UpdateToken(t *Token) error
+	rpc	RevokeToken(RevokeKey string) error
+
+	rpc	IsAllow(string) bool
+
+	rpc	PutRule(role string, action ...string) error
+	rpc	DeleteRule(role string, action ...string) error
+
+	rpc	Root(name string) (string, error)
+}
+
+message User {
+	string name 
+	map[string]string label
+}
+message Token {}
+message Role{}
+message Rule{
+	string role
+	repeated string action
+}

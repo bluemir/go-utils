@@ -1,69 +1,45 @@
 package auth
 
-import (
-	"database/sql/driver"
-	"encoding/json"
-
-	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
-)
-
 /*
-User:Role   = n:1
+User:Role   = n:n
 User:Token  = 1:n
 Role:Action = n:n
 */
 
 type User struct {
-	gorm.Model
-	Name   string `gorm:"unique"`
-	Role   Role   `sql:"type:string"`
-	Labels Labels `sql:"type:json"`
+	Name string
+	Attr map[string]string
 }
 
 type Token struct {
-	gorm.Model
-	Username  string
-	HashedKey string `json:"-"`
+	*User
+	HashedKey string
 	RevokeKey string
-	Labels    Labels `sql:"type:json"`
-	// if nil it mean same as user
-	Allows Allows `sql:"type:json"`
-}
-type Allows []Action // for gorm ...
-func (allows *Allows) Scan(src interface{}) error {
-	str, ok := src.([]byte)
-	if !ok {
-		return errors.New("must []byte")
-	}
-	return json.Unmarshal(str, allows)
-}
-func (allows Allows) Value() (driver.Value, error) {
-	return json.Marshal(allows)
+	Attr      map[string]string
 }
 
-type Role string
-type Action string
+type Action = string
 
-type Rule struct {
-	Role  Role   `sql:"type:string"`
-	Allow Action `sql:"type:string"`
+type Resource interface {
+	Set(key, value string) error
+	Get(key string) (string, error)
+	List() map[string]string
 }
 
-// TODO labels gorm bindig
-type Labels map[string]string
+type AuthzResult = bool
 
-func (labels *Labels) Scan(src interface{}) error {
-	str, ok := src.([]byte)
-	if !ok {
-		return errors.New("must []byte")
-	}
-	err := json.Unmarshal(str, labels)
-	if err != nil {
-		return err
-	}
+type Role = string
+
+// simple Resource implements
+type KV map[string]string
+
+func (kv KV) Get(key string) (string, error) {
+	return kv[key], nil
+}
+func (kv KV) Set(key, value string) error {
+	kv[key] = value
 	return nil
 }
-func (labels Labels) Value() (driver.Value, error) {
-	return json.Marshal(labels)
+func (kv KV) List() map[string]string {
+	return kv
 }
