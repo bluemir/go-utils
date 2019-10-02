@@ -23,7 +23,6 @@ func (c *abacUserClause) Get(key string) (string, error) {
 	return c.user.Attr[key], nil
 }
 func (c *abacUserClause) Set(key, value string) error {
-	// TODO
 	c.user.Attr[key] = value
 
 	return c.manager.User().Update(c.user)

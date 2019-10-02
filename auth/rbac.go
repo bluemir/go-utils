@@ -2,8 +2,6 @@ package auth
 
 import (
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 // manager.RBAC().Rule().Role("admin").Can(Get).Resource(Type("article"))
@@ -44,7 +42,7 @@ type rbacRulesRoleClause struct {
 	role Role
 }
 
-func (c *rbacRulesRoleClause) AddPermission(action Action, resource Resource) error {
+func (c *rbacRulesRoleClause) buildRule(action Action, resource Resource) string {
 	rules := []string{}
 	for k, v := range resource.List() {
 		rules = append(rules, `Resource.Get("`+k+`") == "`+v+`"`)
@@ -52,11 +50,25 @@ func (c *rbacRulesRoleClause) AddPermission(action Action, resource Resource) er
 	rules = append(rules, `Token.User.Attr["`+AttrKeyRolePrefix+c.role+`"]=="true"`)
 	rules = append(rules, `Action == "`+action+`"`)
 
-	return c.manager.rules.Add(strings.Join(rules, " && "))
-}
+	return strings.Join(rules, " && ")
 
+}
+func (c *rbacRulesRoleClause) AddPermission(action Action, resource Resource) error {
+	return c.manager.rules.Add(c.buildRule(action, resource))
+}
 func (c *rbacRulesRoleClause) DeletePermission(action Action, resource Resource) error {
-	return errors.Errorf("not implements")
+	rules, err := c.manager.Rules().List()
+	if err != nil {
+		return err
+	}
+	ruleStr := c.buildRule(action, resource)
+	for i, rule := range rules {
+		if rule.Source.Content() == ruleStr {
+			c.manager.Rules().Delete(i)
+		}
+	}
+
+	return nil
 }
 
 type rbacUserClause struct {

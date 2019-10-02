@@ -81,8 +81,6 @@ type RBACRulesClause interface {
 type RBACRulesRoleClause interface {
 	//LoadYaml(buf []byte) error
 	//LoadJson(buf []byte) error
-	//DumpYaml() ([]byte, error)
-	//DumpJson() ([]byte, error)
 	AddPermission(action Action, resource Resource) error
 	DeletePermission(action Action, resource Resource) error
 }

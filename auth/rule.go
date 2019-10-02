@@ -16,13 +16,16 @@ type rulesClause struct {
 }
 
 func (c *rulesClause) Add(rule string) error {
+	// TODO save to db
 	return c.manager.rules.Add(rule)
 }
-func (*rulesClause) List() ([]Rule, error) {
-	return nil, nil // TODO
+func (c *rulesClause) List() ([]Rule, error) {
+	return c.rules.items, nil
 }
 func (c *rulesClause) Delete(index int) error {
-	return nil // TODO
+	c.rules.items = append(c.rules.items[:index], c.rules.items[index+1:]...)
+	// TODO save to db
+	return nil
 }
 
 type RuleContext struct {
