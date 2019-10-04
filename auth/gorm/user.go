@@ -3,7 +3,6 @@ package gorm
 import (
 	"github.com/bluemir/go-utils/auth"
 	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
 )
 
 func (s *store) CreateUser(u *auth.User) error {
@@ -16,7 +15,6 @@ func (s *store) CreateUser(u *auth.User) error {
 	}
 	return nil
 
-	return errors.New("User already exist")
 }
 func (s *store) GetUser(username string) (*auth.User, bool, error) {
 	user := &User{}
@@ -49,9 +47,11 @@ func (s *store) PutUser(u *auth.User) error {
 		return err
 	}
 	user := fromAuthUser(u)
+
 	if err := s.db.Model(old).Association("Attrs").Replace(&user.Attrs).Error; err != nil {
 		return err
 	}
+
 	return nil
 }
 func (s *store) DeleteUser(username string) error {

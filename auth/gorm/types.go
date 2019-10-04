@@ -7,7 +7,7 @@ import (
 
 type User struct {
 	gorm.Model
-	Name  string
+	Name  string `gorm:"not null"`
 	Attrs []UserAttr
 }
 type UserAttr struct {

@@ -55,6 +55,8 @@ func New(opts map[string]interface{}) (auth.StoreDriver, bool, error) {
 		&Token{},
 		&TokenAttr{},
 	)
+	db.Model(&User{}).Association("Attrs")
+	db.Model(&Token{}).Association("Attrs")
 
 	return &store{db}, first, nil
 }
